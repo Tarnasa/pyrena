@@ -44,6 +44,7 @@ REFRESH_SECONDS = int(os.getenv('REFRESH_SECONDS', 30))
 N_ELIMINATION = int(os.getenv('N_ELIMINATION', 3))
 BEST_OF = int(os.getenv('BEST_OF', '7'))
 REUSE_OLD_GAMES = bool(os.getenv('REUSE_OLD_GAMES', True))
+OUTPUT_FILE = os.getenv('OUTPUT_FILE', 'tournament.dot')
 
 class Submission(object):
     pass
@@ -85,7 +86,7 @@ def main():
             if winner:
                 logging.info('Tournament complete')
                 logging.info(f'Winner is {winner.winner.name}')
-                dot_nodes(nodes)
+                print_and_save_dot_file()
                 break
             create_needed_games(conn, [nodes])
             logging.debug(f'Sleeping {REFRESH_SECONDS}')
@@ -96,8 +97,18 @@ def main():
 
 def sigint_handler(signal, frame):
     logging.warning('Caught SIGINT')
+    print_and_save_dot_file()
+
+def print_and_save_dot_file():
     global nodes
-    dot_nodes(nodes)
+    s = dot_nodes(nodes)
+    print(s)
+    logging.info(f'Writing dot file to {OUTPUT_FILE}')
+    try:
+        with open(OUTPUT_FILE, 'w') as f:
+            f.write(s)
+    except Exception as e:
+        logging.warning(traceback.format_exc())
 
 def get_latest_submissions(conn):
     cur = conn.cursor()
@@ -192,46 +203,6 @@ def generate_single_elimination_bracket(submissions):
         lower_level = level
     return levels
 
-def generate_double_elimination_bracket(submissions):
-    winner_bracket = generate_single_elimination_bracket(submissions)
-    # Generate losers bracket
-    levels = list()
-    previous_level = list()
-    left_over = []
-    winner_i = 0
-    while True:
-        winner_level = winner_bracket[winner_i] if winner_i < len(winner_bracket) else []
-        feeders = previous_level + winner_level + left_over
-        if not feeders:
-            break
-        if len(feeders) == 1:
-            logging.error('Only one feeder!')
-            break
-        level = list()
-        for i in range(0, len(feeders)-1, 2):
-            node = Node()
-            if i >= len(previous_level):
-                node.inverted_feeders.append(feeders[i])
-            else:
-                node.feeders.append(feeders[i])
-            if i+1 >= len(previous_level):
-                node.inverted_feeders.append(feeders[i + 1])
-            else:
-                node.feeders.append(feeders[i + 1])
-            level.append(node)
-        left_over = [feeders[-1]] if len(feeders) % 2 else []
-        levels.append(level)
-        previous_level = level
-        winner_i += 1
-    # combine levels
-    combined = list(((a or []) + (b or [])) for a, b in itertools.zip_longest(winner_bracket, [list()] + levels))
-    final_match = Node()
-    final_match.feeders.append(winner_bracket[-1][0])
-    final_match.feeders.append(levels[-1][0])
-    final_level = [final_match]
-    combined.append(final_level)
-    return combined
-
 # Must be called continuosly as winners are updated
 # When the tournament is finished, returns the winner node
 # Otherwise returns false
@@ -298,59 +269,6 @@ def generate_n_elimination_bracket_online(submissions, nodes, max_losses):
 def pairwise(collection):
     return zip(*([iter(collection)] * 2))
 
-def generate_triple_elimination_bracket(submissions):
-    seed_layer = generate_initial_pairing(submissions)
-    for node in seed_layer:
-        node.losses = 0
-    layers = [seed_layer]
-    left_over = list(seed_layer)
-    while True:
-        if (len(left_over) == 3
-                and left_over[0].losses == 0
-                and left_over[1].losses == 1
-                and left_over[2].losses == 2):
-            break
-        layer = list()
-        next_left_over = list()
-        by_losses = collections.defaultdict(lambda: list())
-        for node in left_over:
-            by_losses[node.losses].append(node)  # Order matters
-        for losses, nodes in by_losses.items():
-            for pair in pairwise(reversed(nodes)):  # Order matters
-                node = Node()
-                node.feeders = pair
-                node.losses = losses
-                layer.append(node)
-                if losses < 2:
-                    node = Node()
-                    node.inverted_feeders = pair
-                    node.losses = losses + 1
-                    layer.append(node)
-            if len(nodes) % 2:
-                next_left_over.append(nodes[0])
-        layers.append(layer)
-        next_left_over.extend(layer)
-        left_over = next_left_over
-    # Generate pessimistic winners bracket
-    while len(left_over) > 1:
-        left_over = sorted(left_over, key=lambda n: n.losses)
-        n1, n2 = left_over[-2:]
-        left_over = left_over[:-2]
-        layers.append([n1, n2])
-        difference = n2.losses - n1.losses
-        for _ in range(difference):
-            tiebreaker = Node()
-            tiebreaker.feeders = [n1, n2]
-            tiebreaker.losses = n2.losses
-            layers.append([tiebreaker])
-            n2 = tiebreaker
-        tiebreaker2 = Node()
-        tiebreaker2.feeders = [n1, n2]
-        tiebreaker2.losses = n2.losses
-        left_over.append(tiebreaker2)
-    layers.append([left_over[0]])
-    return layers
-
 def get_node_label(node):
     names = list()
     for submission in node.submissions:
@@ -415,16 +333,18 @@ def dot_tree(node):
     print('}')
 
 def dot_nodes(nodes):
-    print('digraph bracket {')
-    print('  rankdir=LR')
+    s = ''
+    s += 'digraph bracket {\n'
+    s += '  rankdir=LR\n'
     for node in nodes:
         for feeder in node.feeders:
-            print(f'  {id(feeder)} -> {id(node)} [style=solid];')
+            s += f'  {id(feeder)} -> {id(node)} [style=solid];\n'
         for feeder in node.inverted_feeders:
-            print(f'  {id(feeder)} -> {id(node)} [style=dotted];')
+            s += f'  {id(feeder)} -> {id(node)} [style=dotted];\n'
         label = get_node_label(node)
-        print(f'  {id(node)} [label="{label}"];')
-    print('}')
+        s += f'  {id(node)} [label="{label}"];\n'
+    s += '}\n'
+    return s
 
 def get_games(conn, game_ids):
     cur = conn.cursor()
