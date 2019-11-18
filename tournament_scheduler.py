@@ -43,15 +43,16 @@ DB_PASS = os.getenv('DB_PASS', 'postgres')
 REFRESH_SECONDS = int(os.getenv('REFRESH_SECONDS', 30))
 N_ELIMINATION = int(os.getenv('N_ELIMINATION', 3))
 BEST_OF = int(os.getenv('BEST_OF', '7'))
+REUSE_OLD_GAMES = bool(os.getenv('REUSE_OLD_GAMES', True))
 
 class Submission(object):
     pass
-BUY = Submission()
-BUY.id = -1
-BUY.name = 'BUY'
-BUY.version = -1
-BUY.status = 'BUY'
-BUY.created_at = None
+BYE = Submission()
+BYE.id = -1
+BYE.name = 'BYE'
+BYE.version = -1
+BYE.status = 'BYE'
+BYE.created_at = None
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -120,6 +121,25 @@ AND s.status != 'failed'
     cur.execute(q)
     return cur.fetchall()
 
+def get_unused_game(conn, left_submission, right_submission, used_game_ids):
+    cur = conn.cursor()
+    q = '''
+SELECT g.id, g.winner_id, g.log_url, g.status
+FROM games g
+INNER JOIN games_submissions gs1
+ON g.id = gs1.game_id
+INNER JOIN games_submissions gs2
+ON g.id = gs2.game_id
+WHERE gs1.submission_id = %s
+AND gs2.submission_id = %s
+AND g.status = 'finished'
+AND g.id NOT IN %s
+ORDER BY g.id DESC
+LIMIT 1
+    '''
+    cur.execute(q, (left_submission.id, right_submission.id, (-1, *used_game_ids)))
+    return cur.fetchall()
+
 class Node:
     def __init__(self):
         self.submissions = list()
@@ -143,7 +163,7 @@ def generate_initial_pairing(submissions):
     width = 2**int(math.ceil(math.log2(len(submissions))) - 1)
     shuffled_submissions = list(submissions)
     random.shuffle(shuffled_submissions)
-    shuffled_submissions += [BUY] * (2*width - len(shuffled_submissions))
+    shuffled_submissions += [BYE] * (2*width - len(shuffled_submissions))
     nodes = [Node() for _ in range(width)]
     i = 0
     for node in nodes:
@@ -453,16 +473,16 @@ def declare_and_propogate_winners(node):
     for feeder in node.feeders:
         declare_and_propogate_winners(feeder)
     propogate_winners(node)
-    # Handle buys
+    # Handle byes
     if len(node.submissions) == 2:
-        if node.submissions[0] is BUY and node.submissions[1]:
+        if node.submissions[0] is BYE and node.submissions[1]:
             node.winner = node.submissions[1]
-            node.loser = BUY
-        if node.submissions[1] is BUY and node.submissions[0]:
+            node.loser = BYE
+        if node.submissions[1] is BYE and node.submissions[0]:
             node.winner = node.submissions[0]
-            node.loser = BUY
-        if node.submissions[0] is BUY and node.submissions[1] is BUY:
-            node.winner = node.loser = BUY
+            node.loser = BYE
+        if node.submissions[0] is BYE and node.submissions[1] is BYE:
+            node.winner = node.loser = BYE
     # Handle playing yourself
     if len(node.submissions) == 2:
         if node.submissions[0] == node.submissions[1]:
@@ -480,6 +500,18 @@ def declare_and_propogate_winners(node):
                         break
                 else:
                     raise Exception(f'Winner {winner_id} was not a member of this node')
+
+def create_or_reuse_game(conn, left, right):
+    if REUSE_OLD_GAMES:
+        global nodes
+        used_game_ids = [game.id for node in nodes for game in node.games]
+        games = get_unused_game(conn, left, right, used_game_ids)
+        if games:
+            game = games[0]
+            logging.info(f'Re-used old match {game.id} for {left.name}({left.id}) vs. {right.name}({right.id})')
+            return game
+    logging.info(f'Enqueueing match for {left.name}({left.id}) vs. {right.name}({right.id})')
+    return create_queued_game(conn, left, right)
 
 def create_queued_game(conn, left_submission, right_submission):
     cur = conn.cursor()
@@ -509,7 +541,7 @@ def create_needed_games(conn, levels):
     for level in levels:
         for node in level:
             if not node.winner and len(node.submissions) == 2:
-                if BUY in node.submissions:
+                if BYE in node.submissions:
                     continue
                 finished_or_queued_games = [g for g in node.games if g.status in ['finished', 'queued', 'playing']]
                 for i in range(len(finished_or_queued_games), BEST_OF):
@@ -517,8 +549,7 @@ def create_needed_games(conn, levels):
                     # Try to mitigate first-turn advantage by switching player order
                     if i % 2:
                         left, right = right, left
-                    logging.info(f'Enqueueing match for {left.name}({left.id}) vs. {right.name}({right.id})')
-                    game = create_queued_game(conn, left, right)
+                    game = create_or_reuse_game(conn, left, right)
                     node.games.append(game)
 
 if __name__ == '__main__':
