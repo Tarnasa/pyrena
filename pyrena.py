@@ -61,7 +61,7 @@ CONTAINER_RAM = os.getenv('CONTAINER_RAM', '1g')
 MATCH_TIMEOUT = int(os.getenv('MATCH_TIMEOUT', 60*5))
 DOCKER_BIN = os.getenv('DOCKER_BIN', '/usr/bin/docker')
 
-KNOWN_LANGUAGE_EXTENSIONS = 'py cpp cs lua java js ts'.split()
+KNOWN_LANGUAGE_EXTENSIONS = 'py cpp cs lua java js ts go'.split()
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -470,7 +470,7 @@ def match_stdout_path(submission, session):
 def start_and_connect_client(session, password, submission, index):
     name = docker_name(session, submission)
     image = submission_docker_tag(submission.id)
-    docker_args = [DOCKER_BIN, 'run', '--net=host', '--rm',
+    docker_args = [DOCKER_BIN, 'run', '--net=host', '--rm', '--init',
             '--name', name,
             '--cpus', CONTAINER_CPU,
             '--memory', CONTAINER_RAM,
