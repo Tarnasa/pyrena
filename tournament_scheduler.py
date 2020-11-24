@@ -45,6 +45,7 @@ N_ELIMINATION = int(os.getenv('N_ELIMINATION', 3))
 BEST_OF = int(os.getenv('BEST_OF', '7'))
 REUSE_OLD_GAMES = bool(os.getenv('REUSE_OLD_GAMES', True))
 OUTPUT_FILE = os.getenv('OUTPUT_FILE', 'tournament.dot')
+VISUALIZER_URL = os.getenv('VISUALIZER_URL', 'http://vis.siggame.io/')
 
 class Submission(object):
     pass
@@ -283,7 +284,15 @@ def get_node_label(node):
             representative_games = [g for g in node.games if g.winner_id == node.winner.id]
             if representative_games:
                 label += r'\n' + representative_games[0].log_url
-    return label
+    return label.replace('"', '\\"')
+
+def get_node_url(node):
+    if node.games:
+        if node.winner:
+            representative_games = [g for g in node.games if g.winner_id == node.winner.id]
+            if representative_games:
+                return (VISUALIZER_URL + '?log=' + representative_games[0].log_url).replace('"', '\\"')
+    return None
 
 def _print_tree(node, depth):
     global _printed
@@ -342,7 +351,11 @@ def dot_nodes(nodes):
         for feeder in node.inverted_feeders:
             s += f'  {id(feeder)} -> {id(node)} [style=dotted];\n'
         label = get_node_label(node)
-        s += f'  {id(node)} [label="{label}"];\n'
+        url = get_node_url(node)
+        if url:
+            s += f'  {id(node)} [href="{url}"][label="{label}"];\n'
+        else:
+            s += f'  {id(node)} [label="{label}"];\n'
     s += '}\n'
     return s
 
