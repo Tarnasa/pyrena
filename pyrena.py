@@ -264,11 +264,11 @@ def generate_nonrecent_pairing(submissions, games):
         pairs.append(tuple(sorted(submission_ids)))
     tries = 200
     pair = generate_pairing(submissions)
-    while pair in pairs:
+    while tuple(sorted(pair)) in pairs:
         pair = generate_pairing(submissions)
         tries -= 1
         if tries <= 0:
-            raise Exception('Unable to generate non-recent pairing')
+            raise Exception('Unable to generate non-recent pairing, are there any submissions? or is LOOKBACK_SECONDS too high?')
     id_to_submissions = {s.id: s for s in submissions}
     return tuple(id_to_submissions[id_] for id_ in pair)
 
@@ -280,7 +280,7 @@ def generate_pairing(submissions):
     b = random.choice(ids)
     while b == a:
         b = random.choice(ids)
-    return tuple(sorted([a, b]))
+    return (a, b)
     
 def insert_new_game_row(conn, pair):
     cur = conn.cursor()
