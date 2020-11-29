@@ -51,8 +51,9 @@ GAMESERVER_TCPPORT = os.getenv('GAMESERVER_TCPPORT', '3000')
 GAMESERVER_WEBPORT = os.getenv('GAMESERVER_WEBPORT', '3080')
 DROOPY_URL = os.getenv('DROOPY_URL', 'http://localhost:8000/') # Note trailing slash
 DROOPY_CREDS = os.getenv('DROOPY_CREDS', 'USER:PASS')  # Leave empty for no creds
+DRY_RUN = os.getenv('DRY_RUN', 'True').lower() == 'true'  # Whether to update the database and droopy or not
+RUN_FOREVER = os.getenv('RUN_FOREVER', 'False').lower() == 'true'
 DOCKERFILE_PATH = os.getenv('DOCKERFILE_PATH', '/per_language_dockerfiles')
-RUN_FOREVER = os.getenv('RUN_FOREVER', False)
 LOGFILE_PATH = os.getenv('LOGFILE_PATH', '/tmp/pyrena_logfiles')
 SUBMISSION_CACHE_PATH = os.getenv('SUBMISSION_CACHE_PATH', '/tmp/submission_cache')
 LOOKBACK_SECONDS = int(os.getenv('LOOKBACK_SECONDS', 60*60*1))
@@ -92,6 +93,9 @@ def main():
                 pair = generate_nonrecent_pairing(latest_submissions, games)
                 logging.info('Inserting new game')
                 game_id = insert_new_game_row(conn, pair)
+            if DRY_RUN:
+                game_id = str(game_id) + str(random.randint(1000, 9999))
+                logging.info(f'Using fake game_id {game_id} because DRY_RUN is set.')
             logging.info(f'Playing match: {pair[0].name}({pair[0].id}) v {pair[1].name}({pair[1].id})')
             for submission in pair:
                 maybe_download_submission(conn, submission.id)
@@ -241,7 +245,10 @@ RETURNING g.id;
     '''
     cur.execute(q)
     result = cur.fetchone()
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback
+    else:
+        conn.commit()
     if not result:
         return None, None
     q = '''
@@ -250,7 +257,10 @@ FROM games_submissions gs
 WHERE gs.game_id = %s
     '''
     cur.execute(q, (result.id,))
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback
+    else:
+        conn.commit()
     submission_ids = [s.submission_id for s in cur.fetchall()]
     pair = tuple([s for s in submissions if s.id in submission_ids])
     return result.id, pair
@@ -283,6 +293,10 @@ def generate_pairing(submissions):
     return (a, b)
     
 def insert_new_game_row(conn, pair):
+    if DRY_RUN:
+        fake_game_id = (int(time.time() * 100) % 1000) * 1000 + random.randint(0, 999)
+        logging.info(f'Using fake game_id {fake_game_id} because DRY_RUN is set.')
+        return fake_game_id
     cur = conn.cursor()
     q = '''
 INSERT INTO games (
@@ -303,7 +317,10 @@ INSERT INTO games_submissions (
     '''
     cur.execute(q, (game_id, pair[0].id, game_id, pair[1].id))
     cur.close()
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback()
+    else:
+        conn.commit()
     return game_id
 
 def submission_filename(submission_id):
@@ -399,7 +416,10 @@ SET
 WHERE id = %s
     '''
     cur.execute(q, (status, logfile_url, submission_id))
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback()
+    else:
+        conn.commit()
 
 def submission_docker_tag(submission_id):
     return f'submission_{submission_id}'
@@ -515,6 +535,9 @@ def kill_remaining_clients(pair, processes, stdouts):
             stdouts[i].close()
 
 def upload_file_to_droopy(filename, droopy_filename):
+    if DRY_RUN:
+        logging.info(f'Not uploading {filename} to {droopy_filename} because DRY_RUN is set.')
+        return DROOPY_URL + droopy_filename
     logging.info(f'Uploading {filename} to {droopy_filename}')
     boundary = 'canyoutellidontlikelibraries'
     headers = {'Content-Type': f'multipart/form-data; boundary={boundary}'}
@@ -578,7 +601,10 @@ lose_reason = %s
 WHERE id = %s
     '''
     cur.execute(q, (reason, reason, game_id,))
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback()
+    else:
+        conn.commit()
 
 def update_game_succeeded(conn, win_reason, lose_reason, winner_id, log_url, game_id):
     cur = conn.cursor()
@@ -593,7 +619,10 @@ SET
 WHERE id = %s
     '''
     cur.execute(q, (win_reason, lose_reason, winner_id, log_url, game_id))
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback()
+    else:
+        conn.commit()
 
 def update_game_submission_logs(conn, output_url, game_id, submission_id):
     cur = conn.cursor()
@@ -604,7 +633,10 @@ WHERE game_id = %s
 AND submission_id = %s
     '''
     cur.execute(q, (output_url, game_id, submission_id))
-    conn.commit()
+    if DRY_RUN:
+        conn.rollback()
+    else:
+        conn.commit()
 
 if __name__ == '__main__':
     main()

@@ -43,7 +43,7 @@ DB_PASS = os.getenv('DB_PASS', 'postgres')
 REFRESH_SECONDS = int(os.getenv('REFRESH_SECONDS', 30))
 N_ELIMINATION = int(os.getenv('N_ELIMINATION', 3))
 BEST_OF = int(os.getenv('BEST_OF', '7'))
-REUSE_OLD_GAMES = bool(os.getenv('REUSE_OLD_GAMES', True))
+REUSE_OLD_GAMES = os.getenv('REUSE_OLD_GAMES', 'True').lower == 'true'
 OUTPUT_FILE = os.getenv('OUTPUT_FILE', 'tournament.dot')
 VISUALIZER_URL = os.getenv('VISUALIZER_URL', 'http://vis.siggame.io/')
 
