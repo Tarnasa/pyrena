@@ -405,9 +405,10 @@ class HTTPUploadHandler(httpserver.BaseHTTPRequestHandler):
             headers = {'Content-length': os.fstat(f.fileno())[6],
                        'Content-type': mimetypes.guess_type(localpath)[0],
                        'Access-Control-Allow-Origin': '*'}
-            if 'Blobmaster-' in localpath:
+            if f.read(2) == b'\x1f\x8b':
                 headers['Content-Encoding'] = 'gzip'
                 headers['Content-Type'] = 'application/json'
+            f.seek(0)
             self.send_resp_headers(200, headers, end=True)
             shutil.copyfileobj(f, self.wfile)
 
