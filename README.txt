@@ -1,18 +1,20 @@
 PYRENA:
 
 
-Pyrena is a small arena for siggame/cadre written in Python
+Pyrena is a small arena for siggame/cadre written in Python3
 
 
 REQUIREMENTS:
 
 
 Before using this arena, you must do the following:
-1. Setup a postgres server and create the tables defined in https://github.com/siggame/ophelia/blob/develop/db/init.sql
+1. Setup a PostgreSQL server and create the tables defined in https://github.com/siggame/ophelia/blob/develop/db/init.sql
 2. Setup a siggame gameserver https://github.com/siggame/Cerveau
     - Ideally this would run on the same machine as the `pyrena` so that all network calls are local, though this is not a requirement
-3. Install the psycopg2 python3 module `pip install psycopg2`
-4. Install docker on the machine running `Pyrena`
+3. Install python3.6 or later
+4. Install the psycopg2 python3 module `pip install psycopg2-binary`
+5. Install docker on the machine running `Pyrena`
+6. Install graphviz to visualize tournament output
 
 
 COMPONENTS:
@@ -21,14 +23,14 @@ COMPONENTS:
                                                    /
 tournament_scheduler _                 _________pyrena________
                       \ PostgreSQL DB /                       \ droopygz (large file storage)
-webserver backend ____/               \____client web app_____/
+webserver backend ____/                    client web app_____/
                \______________________________/
 
-Tournament_scheduler : Schedules games for N-elimination tournaments in the BD
+Tournament_scheduler : Schedules games for N-elimination tournaments in the DB
 Webserver backend    : Serves API used by client web app
 PostgreSQL DB        : Stores state for users, teams, games, etc.
 Pyrena               : Reads scheduled games from database, sets up docker VMs and runs them against each other using Gamerserver, uploads logs to droopyz
-Gameserver          : Listens for game clients, validates commands, updates clients, generates gamelogs
+Gameserver           : Listens for game clients, validates commands, updates clients, generates gamelogs
 Client web app       : Authenticated user-friendly interface for uploading submissions, viewing gamelogs, etc.
 Droopygz             : Stores and serves large gzip-compressed files
 
@@ -40,8 +42,11 @@ General procedure to setup a fresh pyrena VM:
 1. Create VM with
     - ubuntu 1804
     - recommended 25GB boot disk (for gameserver's gamelogs)
-2. Allow access to database from this new VM if using IP-based DB whitelisting
-3. SSH into machine and install packages:
+2. Setup droopygz, this is where gamelogs, stdout logs, and build logs will be stored and served from.
+    - Droopygz will drop the files into the directory from which it is ran.
+    - The VM from where it is run must be accessible to the public internet, by default droopy runs on port 8000
+3. Allow access to database from this new VM if using IP-based DB whitelisting
+4. SSH into machine and install packages:
 
 sudo apt-get update
 sudo apt-get install tmux
@@ -127,4 +132,18 @@ DB_USER=\
 DB_PASS=\
 N_ELIMINATION=3\
 BEST_OF=7\
+REUSE_OLD_GAMES=True\
+OUTPUT_FILE=tournament.dot\
+VISUALIZER_URL=http://vis.siggame.io/\
 python3 tournament_scheduler.py
+
+When the tournament completes, tournament_scheduler will print a dot-format file describing the tournament outcome.
+Use graphviz tools to convert this to an image of some kind:
+
+It can also be told to print the current state of the bracket by sending it SIGINT via pressing Control-C
+
+Convert the graphviz dot file to an image using something like:
+
+dot tournament.dot -T svg -o tournament.svg
+
+Or use an online service like https://dreampuf.github.io/GraphvizOnline/
