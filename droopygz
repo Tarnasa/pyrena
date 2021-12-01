@@ -78,7 +78,6 @@ else:
 import cgi
 import os
 import posixpath
-import macpath
 import ntpath
 import argparse
 import mimetypes
@@ -109,7 +108,7 @@ def fullpath(path):
 
 def basename(path):
     "Extract the file base name (some browsers send the full file path)."
-    for mod in posixpath, macpath, ntpath:
+    for mod in posixpath, ntpath:
         path = mod.basename(path)
     return path
 
