@@ -290,13 +290,6 @@ class HTTPUploadHandler(httpserver.BaseHTTPRequestHandler):
                 links += '<a href="/{0}">{1}</a>'.format(encoded_path, item)
             links = '<div id="files">' + links + '</div>'
         dico["files"] = links
-        # -- Add a link to discover the url
-        if self.client_address[0] == "127.0.0.1":
-            dico["port"] = self.server.server_port
-            dico["ssl"] = int(self.certfile is not None)
-            dico["linkurl"] = self.templates['linkurl'] % dico
-        else:
-            dico["linkurl"] = ''
         return self.templates[page] % dico
 
     def split_path(self, path):
@@ -529,9 +522,6 @@ img {max-width: 100%%;}
 a {color: #4499cc; text-decoration: none;}
 .container {max-width: 700px; margin: auto; background-color: #fff;}
 .box {padding-top: 20px; padding-bottom: 20px;}
-#linkurl {background-color: #333;}
-#linkurl a {color: #ddd; text-decoration: none;}
-#linkurl a:hover {color: #fff;}
 #message {padding: 5px 0; font-size: 2em; font-weight: lighter;
           letter-spacing: -2px; line-height: 50px; color: #aaa;}
 #sending {display: none; font-style: italic;}
@@ -591,7 +581,6 @@ function onunload() {
 }
 </script></head>
 <body>
-%(linkurl)s
 <div class="container">
 <div id="wrapform">
   <div id="form" class="box">
@@ -657,16 +646,10 @@ errortmpl = '''
 </html>
 '''
 
-linkurltmpl = '''<div id="linkurl" class="box">
-<a href="http://stackp.online.fr/droopy-ip.php?port=%(port)d&ssl=%(ssl)d"> %(discover)s
-</a></div>'''
-
-
 default_templates = {
     "main":     maintmpl,
     "success":  successtmpl,
-    "error":    errortmpl,
-    "linkurl":  linkurltmpl}
+    "error":    errortmpl}
 
 # -- Translations
 default_localisations = {
@@ -679,8 +662,7 @@ default_localisations = {
         "another":         u"إرسال ملف آخر",
         "errortitle":      u"مشكلة",
         "problem":         u"حدثت مشكلة !",
-        "retry":           u"إعادة المحاولة",
-        "discover":        u"اكتشاف عنوان هذه الصفحة"},
+        "retry":           u"إعادة المحاولة"},
     'cs' : {
         "maintitle":       u"Poslat soubor",
         "submit":          u"Poslat",
@@ -690,8 +672,7 @@ default_localisations = {
         "another":         u"Poslat další soubor",
         "errortitle":      u"Chyba",
         "problem":         u"Stala se chyba !",
-        "retry":           u"Zkusit znova.",
-        "discover":        u"Zjistit adresu stránky"},
+        "retry":           u"Zkusit znova."},
     'da' : {
         "maintitle":       u"Send en fil",
         "submit":          u"Send",
@@ -701,8 +682,7 @@ default_localisations = {
         "another":         u"Send en fil til.",
         "errortitle":      u"Problem",
         "problem":         u"Det er opstået en fejl!",
-        "retry":           u"Forsøg igen.",
-        "discover":        u"Find adressen til denne side"},
+        "retry":           u"Forsøg igen."},
     'de' : {
         "maintitle":       "Datei senden",
         "submit":          "Senden",
@@ -712,8 +692,7 @@ default_localisations = {
         "another":         "Weitere Datei senden",
         "errortitle":      "Fehler",
         "problem":         "Ein Fehler ist aufgetreten!",
-        "retry":           "Wiederholen",
-        "discover":        "Internet-Adresse dieser Seite feststellen"},
+        "retry":           "Wiederholen"},
     'el' : {
         "maintitle":       u"Στείλε ένα αρχείο",
         "submit":          u"Αποστολή",
@@ -723,8 +702,7 @@ default_localisations = {
         "another":         u"Στείλε άλλο ένα αρχείο",
         "errortitle":      u"Σφάλμα",
         "problem":         u"Παρουσιάστηκε σφάλμα",
-        "retry":           u"Επανάληψη",
-        "discover":        u"Βρες την διεύθυνση της σελίδας"},
+        "retry":           u"Επανάληψη"},
     'en' : {
         "maintitle":       "Send a file",
         "submit":          "Send",
@@ -734,8 +712,7 @@ default_localisations = {
         "another":         "Send another file.",
         "errortitle":      "Problem",
         "problem":         "There has been a problem!",
-        "retry":           "Retry.",
-        "discover":        "Discover the address of this page"},
+        "retry":           "Retry."},
     'es' : {
         "maintitle":       u"Enviar un archivo",
         "submit":          u"Enviar",
@@ -745,8 +722,7 @@ default_localisations = {
         "another":         u"Enviar otro archivo.",
         "errortitle":      u"Error",
         "problem":         u"¡Hubo un problema!",
-        "retry":           u"Reintentar",
-        "discover":        u"Descubrir la dirección de esta página"},
+        "retry":           u"Reintentar"},
     'fi' : {
         "maintitle":       u"Lähetä tiedosto",
         "submit":          u"Lähetä",
@@ -756,8 +732,7 @@ default_localisations = {
         "another":         u"Lähetä toinen tiedosto.",
         "errortitle":      u"Virhe",
         "problem":         u"Virhe lahetettäessä tiedostoa!",
-        "retry":           u"Uudelleen.",
-        "discover":        u"Näytä tämän sivun osoite"},
+        "retry":           u"Uudelleen."},
     'fr' : {
         "maintitle":       u"Envoyer un fichier",
         "submit":          u"Envoyer",
@@ -767,8 +742,7 @@ default_localisations = {
         "another":         u"Envoyer un autre fichier.",
         "errortitle":      u"Problème",
         "problem":         u"Il y a eu un problème !",
-        "retry":           u"Réessayer.",
-        "discover":        u"Découvrir l'adresse de cette page"},
+        "retry":           u"Réessayer."},
     'gl' : {
         "maintitle":       u"Enviar un ficheiro",
         "submit":          u"Enviar",
@@ -778,8 +752,7 @@ default_localisations = {
         "another":         u"Enviar outro ficheiro.",
         "errortitle":      u"Erro",
         "problem":         u"Xurdíu un problema!",
-        "retry":           u"Reintentar",
-        "discover":        u"Descubrir o enderezo desta páxina"},
+        "retry":           u"Reintentar"},
     'hu' : {
         "maintitle":       u"Állomány küldése",
         "submit":          u"Küldés",
@@ -789,8 +762,7 @@ default_localisations = {
         "another":         u"További állományok küldése",
         "errortitle":      u"Hiba",
         "problem":         u"Egy hiba lépett fel!",
-        "retry":           u"Megismételni",
-        "discover":        u"Az oldal Internet-címének megállapítása"},
+        "retry":           u"Megismételni"},
     'id' : {
         "maintitle":       "Kirim sebuah berkas",
         "submit":          "Kirim",
@@ -800,8 +772,7 @@ default_localisations = {
         "another":         "Kirim berkas yang lain.",
         "errortitle":      "Permasalahan",
         "problem":         "Telah ditemukan sebuah kesalahan!",
-        "retry":           "Coba kembali.",
-        "discover":        "Kenali alamat IP dari halaman ini"},
+        "retry":           "Coba kembali."},
     'it' : {
         "maintitle":       u"Invia un file",
         "submit":          u"Invia",
@@ -811,8 +782,7 @@ default_localisations = {
         "another":         u"Invia un altro file.",
         "errortitle":      u"Errore",
         "problem":         u"Si è verificato un errore!",
-        "retry":           u"Riprova.",
-        "discover":        u"Scopri l’indirizzo di questa pagina"},
+        "retry":           u"Riprova."},
     'ja' : {
         "maintitle":       u"ファイル送信",
         "submit":          u"送信",
@@ -822,8 +792,7 @@ default_localisations = {
         "another":         u"他のファイルを送信する",
         "errortitle":      u"問題発生",
         "problem":         u"問題が発生しました！",
-        "retry":           u"リトライ",
-        "discover":        u"このページのアドレスを確認する"},
+        "retry":           u"リトライ"},
     'ko' : {
         "maintitle":       u"파일 보내기",
         "submit":          u"보내기",
@@ -833,8 +802,7 @@ default_localisations = {
         "another":         u"다른 파일 보내기",
         "errortitle":      u"문제가 발생했습니다",
         "problem":         u"문제가 발생했습니다!",
-        "retry":           u"다시 시도",
-        "discover":        u"이 페이지 주소 알아보기"},
+        "retry":           u"다시 시도"},
     'nl' : {
         "maintitle":       "Verstuur een bestand",
         "submit":          "Verstuur",
@@ -844,8 +812,7 @@ default_localisations = {
         "another":         "Verstuur nog een bestand.",
         "errortitle":      "Fout",
         "problem":         "Er is een fout opgetreden!",
-        "retry":           "Nog eens.",
-        "discover":        "Vind het adres van deze pagina"},
+        "retry":           "Nog eens."},
     'no' : {
         "maintitle":       u"Send en fil",
         "submit":          u"Send",
@@ -855,8 +822,7 @@ default_localisations = {
         "another":         u"Send en ny fil.",
         "errortitle":      u"Feil",
         "problem":         u"Det har skjedd en feil !",
-        "retry":           u"Send på nytt.",
-        "discover":        u"Finn addressen til denne siden"},
+        "retry":           u"Send på nytt."},
     'pl' : {
         "maintitle":       u"Wyślij plik",
         "submit":          u"Wyślij",
@@ -866,8 +832,7 @@ default_localisations = {
         "another":         u"Wyślij kolejny plik.",
         "errortitle":      u"Problem",
         "problem":         u"Wystąpił błąd!",
-        "retry":           u"Spróbuj ponownie.",
-        "discover":        u"Znajdź adres tej strony"},
+        "retry":           u"Spróbuj ponownie."},
     'pt' : {
         "maintitle":       u"Enviar um ficheiro",
         "submit":          u"Enviar",
@@ -877,8 +842,7 @@ default_localisations = {
         "another":         u"Enviar outro ficheiro.",
         "errortitle":      u"Erro",
         "problem":         u"Ocorreu um erro !",
-        "retry":           u"Tentar novamente.",
-        "discover":        u"Descobrir o endereço desta página"},
+        "retry":           u"Tentar novamente."},
     'pt-br' : {
         "maintitle":       u"Enviar um arquivo",
         "submit":          u"Enviar",
@@ -888,8 +852,7 @@ default_localisations = {
         "another":         u"Enviar outro arquivo.",
         "errortitle":      u"Erro",
         "problem":         u"Ocorreu um erro!",
-        "retry":           u"Tentar novamente.",
-        "discover":        u"Descobrir o endereço desta página"},
+        "retry":           u"Tentar novamente."},
     'ro' : {
         "maintitle":       u"Trimite un fişier",
         "submit":          u"Trimite",
@@ -899,8 +862,7 @@ default_localisations = {
         "another":         u"Trimite un alt fişier.",
         "errortitle":      u"Problemă",
         "problem":         u"A intervenit o problemă !",
-        "retry":           u"Reîncearcă.",
-        "discover":        u"Descoperă adresa acestei pagini"},
+        "retry":           u"Reîncearcă."},
     'ru' : {
         "maintitle":       u"Отправить файл",
         "submit":          u"Отправить",
@@ -910,8 +872,7 @@ default_localisations = {
         "another":         u"Отправить другой файл.",
         "errortitle":      u"Ошибка",
         "problem":         u"Произошла ошибка !",
-        "retry":           u"Повторить.",
-        "discover":        u"Посмотреть адрес этой страницы"},
+        "retry":           u"Повторить."},
     'sk' : {
         "maintitle":       u"Pošli súbor",
         "submit":          u"Pošli",
@@ -921,8 +882,7 @@ default_localisations = {
         "another":         u"Poslať ďalší súbor.",
         "errortitle":      u"Chyba",
         "problem":         u"Vyskytla sa chyba!",
-        "retry":           u"Skúsiť znova.",
-        "discover":        u"Zisti adresu tejto stránky"},
+        "retry":           u"Skúsiť znova."},
     'sl' : {
         "maintitle":       u"Pošlji datoteko",
         "submit":          u"Pošlji",
@@ -932,8 +892,7 @@ default_localisations = {
         "another":         u"Pošlji novo datoteko.",
         "errortitle":      u"Napaka",
         "problem":         u"Prišlo je do napake !",
-        "retry":           u"Poizkusi ponovno.",
-        "discover":        u"Poišči naslov na tej strani"},
+        "retry":           u"Poizkusi ponovno."},
     'sr' : {
         "maintitle":       u"Pošalji fajl",
         "submit":          u"Pošalji",
@@ -943,8 +902,7 @@ default_localisations = {
         "another":         u"Pošalji još jedan fajl.",
         "errortitle":      u"Problem",
         "problem":         u"Desio se problem !",
-        "retry":           u"Pokušaj ponovo.",
-        "discover":        u"Otkrij adresu ove stranice"},
+        "retry":           u"Pokušaj ponovo."},
     'sv' : {
         "maintitle":       u"Skicka en fil",
         "submit":          u"Skicka",
@@ -954,8 +912,7 @@ default_localisations = {
         "another":         u"Skicka en fil till.",
         "errortitle":      u"Fel",
         "problem":         u"Det har uppstått ett fel !",
-        "retry":           u"Försök igen.",
-        "discover":        u"Ta reda på adressen till denna sida"},
+        "retry":           u"Försök igen."},
     'tr' : {
         "maintitle":       u"Dosya gönder",
         "submit":          u"Gönder",
@@ -965,8 +922,7 @@ default_localisations = {
         "another":         u"Başka bir dosya gönder.",
         "errortitle":      u"Problem.",
         "problem":         u"Bir problem oldu !",
-        "retry":           u"Yeniden dene.",
-        "discover":        u"Bu sayfanın adresini bul"},
+        "retry":           u"Yeniden dene."},
     'zh-cn' : {
         "maintitle":       u"发送文件",
         "submit":          u"发送",
@@ -976,8 +932,7 @@ default_localisations = {
         "another":         u"发送另一个文件。",
         "errortitle":      u"问题",
         "problem":         u"出现问题！",
-        "retry":           u"重试。",
-        "discover":        u"查看本页面的地址"},
+        "retry":           u"重试。"},
     'zh-tw' : {
         "maintitle":       u"上傳檔案",
         "submit":          u"上傳",
@@ -987,8 +942,7 @@ default_localisations = {
         "another":         u"上傳另一個檔案。",
         "errortitle":      u"錯誤",
         "problem":         u"出現錯誤！",
-        "retry":           u"重試。",
-        "discover":        u"查閱本網頁的網址"}
+        "retry":           u"重試。"}
 }  # Ends default_localisations dictionary.
 
 
